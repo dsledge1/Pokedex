@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/dsledge1/Pokedex/internal/pokeapi"
+	"github.com/dsledge1/Pokedex/internal/pokecache"
 )
 
 func main() {
@@ -16,6 +18,7 @@ func main() {
 		Offset:   0,
 		Next:     pokeapi.APIEndpoint + "location-area?offset=0&limit=20",
 		Previous: pokeapi.APIEndpoint + "location-area?offset=0&limit=20",
+		Cache:    pokecache.NewCache(5 * time.Minute),
 	}
 
 	supportedCommands := map[string]cliCommand{
@@ -47,7 +50,11 @@ func main() {
 		input := cleanInput(scanner.Text())
 		command, ok := supportedCommands[input[0]]
 		if ok {
-			command.callback(config)
+			err := command.callback(config)
+			if err != nil {
+				fmt.Printf("Error executing command: %v\n", err)
+			}
+			continue
 		} else {
 			fmt.Println("Unknown command")
 		}
@@ -68,7 +75,7 @@ func help(config *config) error {
 }
 
 func commandMap(config *config) error {
-	loc, err := pokeapi.GetLocations(config.Next)
+	loc, err := pokeapi.GetLocations(config.Next, config.Cache)
 	if err != nil {
 		return err
 	}
@@ -78,7 +85,7 @@ func commandMap(config *config) error {
 }
 
 func commandMapb(config *config) error {
-	loc, err := pokeapi.GetLocations(config.Previous)
+	loc, err := pokeapi.GetLocations(config.Previous, config.Cache)
 	if err != nil {
 		return err
 	}
@@ -98,4 +105,5 @@ type config struct {
 	Previous string `json: "previous"`
 	Limit    int    `json: "limit"`
 	Offset   int    `json: "offset"`
+	Cache    *pokecache.Cache
 }
