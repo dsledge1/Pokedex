@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -20,6 +21,7 @@ func main() {
 		Current:  pokeapi.APIEndpoint + "location-area?offset=0&limit=20",
 		Previous: pokeapi.APIEndpoint + "location-area?offset=0&limit=20",
 		Cache:    pokecache.NewCache(5 * time.Minute),
+		Pokedex:  make(map[string]pokeapi.Pokemon),
 	}
 
 	supportedCommands := map[string]cliCommand{
@@ -48,6 +50,16 @@ func main() {
 			description: "Displays a list of all Pokemon located at a particular location",
 			callback:    exploreLocation,
 		},
+		"catch": {
+			name:        "catch",
+			description: "Attempt to catch the named Pokemon",
+			callback:    catch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "Inspects the Pokedex entry for the named Pokemon",
+			callback:    inspectPokedex,
+		},
 	}
 
 	for {
@@ -72,12 +84,57 @@ func main() {
 
 }
 
+func inspectPokedex(args []string, config *config) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: catch <pokemon-name>")
+	}
+	pokemon := args[1]
+	if _, ok := config.Pokedex[pokemon]; ok {
+		fmt.Println("Name: " + pokemon + "\nHeight: ")
+	}
+	return nil
+}
+
+func catch(args []string, config *config) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: catch <pokemon-name>")
+	}
+	pokemon := args[1]
+	fmt.Println("Throwing a Pokeball at " + pokemon + "...")
+	pok, err := pokeapi.CatchPokemon(pokeapi.APIEndpoint+"pokemon/"+pokemon, config.Cache)
+	if err != nil {
+		return err
+	}
+	fmt.Println(pok)
+	exp := pok.BaseExperience
+	fmt.Print("base experience: " + fmt.Sprint(exp) + "\n")
+	fmt.Println("Pokemon is " + pok.Name + " with id " + fmt.Sprint(pok.Id))
+	captureDifficulty := float64(exp) / float64(306)
+	fmt.Printf("Capture difficulty: %.2f\n", captureDifficulty)
+	random := rand.Float64()
+	fmt.Printf("Random number: %.2f\n", random)
+	if random >= captureDifficulty {
+
+		fmt.Println(pokemon + " was caught!")
+		config.Pokedex[pokemon] = pokeapi.Pokemon{
+			URL:  pok.URL,
+			Name: pok.Name,
+			Id:   pok.Id,
+		}
+	} else {
+		fmt.Println(pokemon + " escaped!")
+		return nil
+	}
+	return nil
+}
+
 func commandExit(args []string, config *config) error {
 	fmt.Print("Closing the Pokedex... Goodbye!\n")
 	os.Exit(0)
 	return nil
 }
 
+// TODO - Add additional help information for each command, and add a command to list all commands with descriptions
 func help(args []string, config *config) error {
 	fmt.Println("Welcome to the Pokedex!\nUsage:\n\nhelp: Displays a help message\nexit: Exit the Pokedex")
 	return nil
@@ -133,4 +190,5 @@ type config struct {
 	Limit    int    `json: "limit"`
 	Offset   int    `json: "offset"`
 	Cache    *pokecache.Cache
+	Pokedex  map[string]pokeapi.Pokemon
 }

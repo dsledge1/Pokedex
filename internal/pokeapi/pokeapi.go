@@ -12,6 +12,7 @@ const (
 	APIEndpoint = "https://pokeapi.co/api/v2/"
 )
 
+// TODO - Determine if a single APIResponse struct is sufficient for all API calls, or if different structs for different data would be cleaner
 type APIResponse struct {
 	Count    int    `json:"count"`
 	Next     string `json:"next"`
@@ -26,6 +27,49 @@ type APIResponse struct {
 			URL  string `json:"url"`
 		} `json:"pokemon"`
 	} `json:"pokemon_encounters"`
+}
+
+type Pokemon struct {
+	URL            string `json:"url"`
+	Name           string `json:"name"`
+	BaseExperience int    `json:"base_experience"`
+	Id             int    `json:"id"`
+	Height         int    `json:"height"`
+	Weight         int    `json:"weight"`
+	Stats          []struct {
+		Base_stat int `json:"base_stat`
+	}
+}
+
+func CatchPokemon(url string, cache *pokecache.Cache) (Pokemon, error) {
+	//TODO - Return here to add a check for if the pokemon is on the most recent "explore"
+	cachedData, ok := cache.Get(url)
+	if ok {
+		var cachedResponse Pokemon
+		err := json.Unmarshal(cachedData, &cachedResponse)
+		if err != nil {
+			return Pokemon{}, err
+		}
+		return cachedResponse, nil
+	}
+	res, err := http.Get(url)
+	if err != nil {
+		return Pokemon{}, err
+	}
+	defer res.Body.Close()
+	var pokemon Pokemon
+	bod := json.NewDecoder(res.Body)
+	err = bod.Decode(&pokemon)
+	if err != nil {
+		return Pokemon{}, err
+	}
+	cachingPokemon, err := json.Marshal(pokemon)
+	if err != nil {
+		return Pokemon{}, err
+	}
+	cache.Add(url, cachingPokemon)
+	fmt.Println("TEST OUTPUT" + pokemon.Name)
+	return pokemon, nil
 }
 
 func GetPokemon(url string, cache *pokecache.Cache) (APIResponse, error) {
@@ -48,24 +92,23 @@ func GetPokemon(url string, cache *pokecache.Cache) (APIResponse, error) {
 		return APIResponse{}, err
 	}
 	defer res.Body.Close()
-	var pokemon APIResponse
+	var pokemonList APIResponse
 	bod := json.NewDecoder(res.Body)
-
-	err = bod.Decode(&pokemon)
+	err = bod.Decode(&pokemonList)
 	if err != nil {
 		return APIResponse{}, err
 	}
 
 	fmt.Println("Caching data...")
-	cachingPokemon, err := json.Marshal(pokemon)
+	cachingPokemon, err := json.Marshal(pokemonList)
 	if err != nil {
 		return APIResponse{}, err
 	}
 	cache.Add(url, cachingPokemon) //Get Pokemon struct right?
-	for _, poke := range pokemon.Pokemon_encounters {
+	for _, poke := range pokemonList.Pokemon_encounters {
 		fmt.Println("- " + poke.Pokemon.Name)
 	}
-	return pokemon, nil
+	return pokemonList, nil
 }
 
 func GetLocations(url string, cache *pokecache.Cache) (APIResponse, error) {
