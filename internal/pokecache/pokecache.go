@@ -1,7 +1,6 @@
 package pokecache
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -37,17 +36,17 @@ func (c *Cache) Add(key string, val []byte) {
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
-	fmt.Println("Acquiring cache lock")
+
 	c.hold.Lock()
-	fmt.Println("Cache locked")
+
 	defer c.hold.Unlock()
 	entry, ok := c.storage[key]
-	fmt.Println("entry checked")
+
 	if !ok {
-		fmt.Print("cache miss\n")
+
 		return []byte{}, false
 	}
-	fmt.Println("Entry found, returning")
+
 	return entry.val, true
 }
 

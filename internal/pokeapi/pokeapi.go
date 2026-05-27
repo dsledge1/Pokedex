@@ -37,8 +37,18 @@ type Pokemon struct {
 	Height         int    `json:"height"`
 	Weight         int    `json:"weight"`
 	Stats          []struct {
-		Base_stat int `json:"base_stat`
+		Base_stat int `json:"base_stat"`
+		Stat      struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"stat"`
 	}
+	Types []struct {
+		Type struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"type"`
+	} `json:"types"`
 }
 
 func CatchPokemon(url string, cache *pokecache.Cache) (Pokemon, error) {
@@ -68,7 +78,6 @@ func CatchPokemon(url string, cache *pokecache.Cache) (Pokemon, error) {
 		return Pokemon{}, err
 	}
 	cache.Add(url, cachingPokemon)
-	fmt.Println("TEST OUTPUT" + pokemon.Name)
 	return pokemon, nil
 }
 
@@ -99,7 +108,6 @@ func GetPokemon(url string, cache *pokecache.Cache) (APIResponse, error) {
 		return APIResponse{}, err
 	}
 
-	fmt.Println("Caching data...")
 	cachingPokemon, err := json.Marshal(pokemonList)
 	if err != nil {
 		return APIResponse{}, err
@@ -112,9 +120,9 @@ func GetPokemon(url string, cache *pokecache.Cache) (APIResponse, error) {
 }
 
 func GetLocations(url string, cache *pokecache.Cache) (APIResponse, error) {
-	fmt.Print("Checking cache for map data\n")
+
 	cachedData, ok := cache.Get(url)
-	fmt.Println("cache check complete")
+
 	if ok {
 		var cachedResponse APIResponse
 		err := json.Unmarshal(cachedData, &cachedResponse)
@@ -126,7 +134,7 @@ func GetLocations(url string, cache *pokecache.Cache) (APIResponse, error) {
 		}
 		return cachedResponse, nil
 	}
-	fmt.Println("No cached data found, calling API")
+
 	res, err := http.Get(url)
 	if err != nil {
 		return APIResponse{}, err
@@ -140,7 +148,7 @@ func GetLocations(url string, cache *pokecache.Cache) (APIResponse, error) {
 	if err != nil {
 		return APIResponse{}, err
 	}
-	fmt.Println("Caching data...")
+
 	cachingLocations, err := json.Marshal(locations)
 	if err != nil {
 		return APIResponse{}, err

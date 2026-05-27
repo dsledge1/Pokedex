@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os"
 	"time"
 
@@ -60,6 +61,11 @@ func main() {
 			description: "Inspects the Pokedex entry for the named Pokemon",
 			callback:    inspectPokedex,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Lists all of the pokemon currently in your Pokedex",
+			callback:    listPokedex,
+		},
 	}
 
 	for {
@@ -90,7 +96,34 @@ func inspectPokedex(args []string, config *config) error {
 	}
 	pokemon := args[1]
 	if _, ok := config.Pokedex[pokemon]; ok {
-		fmt.Println("Name: " + pokemon + "\nHeight: ")
+		fmt.Println("Name: " + pokemon)
+		fmt.Println("Height: " + fmt.Sprint(config.Pokedex[pokemon].Height))
+		fmt.Println("Weight: " + fmt.Sprint(config.Pokedex[pokemon].Weight))
+		fmt.Println("Stats:")
+		for _, stat := range config.Pokedex[pokemon].Stats {
+			fmt.Printf("  - %s: %d\n", stat.Stat.Name, stat.Base_stat)
+		}
+		fmt.Println("Types:")
+		for _, typ := range config.Pokedex[pokemon].Types {
+			fmt.Println("- " + typ.Type.Name)
+		}
+	} else {
+		fmt.Println("You do not have " + pokemon + " in your Pokedex. Catch it first to inspect it!")
+	}
+	return nil
+}
+
+func listPokedex(args []string, config *config) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: pokedex")
+	}
+	if len(config.Pokedex) == 0 {
+		fmt.Println("You do not have any Pokemon in your pokedex. Catch some!")
+	} else {
+		fmt.Println("Your Pokedex:")
+		for _, pok := range config.Pokedex {
+			fmt.Println("- " + pok.Name)
+		}
 	}
 	return nil
 }
@@ -105,21 +138,21 @@ func catch(args []string, config *config) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(pok)
 	exp := pok.BaseExperience
-	fmt.Print("base experience: " + fmt.Sprint(exp) + "\n")
-	fmt.Println("Pokemon is " + pok.Name + " with id " + fmt.Sprint(pok.Id))
 	captureDifficulty := float64(exp) / float64(306)
-	fmt.Printf("Capture difficulty: %.2f\n", captureDifficulty)
 	random := rand.Float64()
-	fmt.Printf("Random number: %.2f\n", random)
 	if random >= captureDifficulty {
 
 		fmt.Println(pokemon + " was caught!")
 		config.Pokedex[pokemon] = pokeapi.Pokemon{
-			URL:  pok.URL,
-			Name: pok.Name,
-			Id:   pok.Id,
+			URL:            pok.URL,
+			Name:           pok.Name,
+			Id:             pok.Id,
+			Height:         pok.Height,
+			Weight:         pok.Weight,
+			BaseExperience: pok.BaseExperience,
+			Stats:          pok.Stats,
+			Types:          pok.Types,
 		}
 	} else {
 		fmt.Println(pokemon + " escaped!")
@@ -129,6 +162,9 @@ func catch(args []string, config *config) error {
 }
 
 func commandExit(args []string, config *config) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: exit")
+	}
 	fmt.Print("Closing the Pokedex... Goodbye!\n")
 	os.Exit(0)
 	return nil
@@ -136,11 +172,17 @@ func commandExit(args []string, config *config) error {
 
 // TODO - Add additional help information for each command, and add a command to list all commands with descriptions
 func help(args []string, config *config) error {
-	fmt.Println("Welcome to the Pokedex!\nUsage:\n\nhelp: Displays a help message\nexit: Exit the Pokedex")
+	if len(args) != 1 {
+		return fmt.Errorf("usage: help")
+	}
+	fmt.Println("Welcome to the Pokedex!\nUsage:\n\nmap <location>: Displays the next 20 locations.\nmapb <location>: Displays the previous 20 locations.\n\ncatch <pokemon-name>: Attempts to catch a wild Pokemon\n\ninspect <pokemon-name>: Inspects the named Pokemon if you have it in your Pokedex.\npokedex: Lists the contents of your Pokedex\n\nhelp: Displays a help message\nexit: Exit the Pokedex")
 	return nil
 }
 
 func commandMap(args []string, config *config) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: map <location-area-name>")
+	}
 	loc, err := pokeapi.GetLocations(config.Next, config.Cache)
 	if err != nil {
 		return err
@@ -153,7 +195,16 @@ func commandMap(args []string, config *config) error {
 }
 
 func commandMapb(args []string, config *config) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: mapb <location-area-name>")
+	}
+	parsedURL, err := url.Parse(config.Previous)
+	queryParams := parsedURL.Query()
 	loc, err := pokeapi.GetLocations(config.Previous, config.Cache)
+
+	if len(queryParams["offset"]) == 0 || queryParams["offset"][0] == "0" {
+		return fmt.Errorf("Beginning of list - you cannot go back any further.")
+	}
 	if err != nil {
 		return err
 	}
@@ -191,4 +242,16 @@ type config struct {
 	Offset   int    `json: "offset"`
 	Cache    *pokecache.Cache
 	Pokedex  map[string]pokeapi.Pokemon
+}
+
+type Stats []struct {
+	HP             int `json:"hp"`
+	Attack         int `json:"attack"`
+	Defense        int `json:"defense"`
+	SpecialAttack  int `json:"special_attack"`
+	SpecialDefense int `json:"special_defense"`
+	Speed          int `json:"speed"`
+}
+type Type struct {
+	Type string `json:"type"`
 }
