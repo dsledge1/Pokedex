@@ -175,7 +175,7 @@ func help(args []string, config *config) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: help")
 	}
-	fmt.Println("Welcome to the Pokedex!\nUsage:\n\nmap <location>: Displays the next 20 locations.\nmapb <location>: Displays the previous 20 locations.\n\ncatch <pokemon-name>: Attempts to catch a wild Pokemon\n\ninspect <pokemon-name>: Inspects the named Pokemon if you have it in your Pokedex.\npokedex: Lists the contents of your Pokedex\n\nhelp: Displays a help message\nexit: Exit the Pokedex")
+	fmt.Println("Welcome to the Pokedex!\nUsage:\n\nmap <location>: Displays the next 20 locations\nmapb <location>: Displays the previous 20 locations\n\ncatch <pokemon-name>: Attempts to catch a wild Pokemon\n\ninspect <pokemon-name>: Inspects the named Pokemon if you have it in your Pokedex\npokedex: Lists the contents of your Pokedex\n\nhelp: Displays a help message\nexit: Exit the Pokedex")
 	return nil
 }
 
@@ -198,13 +198,13 @@ func commandMapb(args []string, config *config) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: mapb <location-area-name>")
 	}
-	parsedURL, err := url.Parse(config.Previous)
+	parsedURL, err := url.Parse(config.Current)
 	queryParams := parsedURL.Query()
-	loc, err := pokeapi.GetLocations(config.Previous, config.Cache)
-
 	if len(queryParams["offset"]) == 0 || queryParams["offset"][0] == "0" {
 		return fmt.Errorf("Beginning of list - you cannot go back any further.")
 	}
+	loc, err := pokeapi.GetLocations(config.Previous, config.Cache)
+
 	if err != nil {
 		return err
 	}
